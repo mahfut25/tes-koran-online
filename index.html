@@ -582,7 +582,70 @@
         
         // Chart
         let performanceChart;
+        // ========== KODE UNTUK SIMPAN KE SHEET ==========
+const APPS_SCRIPT_URL = 'URL_APPS_SCRIPT'; // Ganti dengan URL Anda
+
+// Fungsi untuk menyimpan hasil ke Google Sheets
+async function simpanHasilKeSheet() {
+    // Siapkan data yang akan dikirim
+    const dataToSend = {
+        nama: pesertaNama,
+        totalSoal: totalAnswered,
+        totalBenar: totalCorrect,
+        totalSalah: totalAnswered - totalCorrect,
+        kecepatanKerja: parseFloat(kecepatanScoreElement.textContent),
+        ketelitianKerja: parseFloat(ketelitianScoreElement.textContent),
+        keajeganKerja: parseFloat(keajeganScoreElement.textContent),
+        ketahananKerja: parseFloat(ketahananScoreElement.textContent),
+        durasiTes: testDuration / 60,
+        accuracy: parseFloat(accuracyScoreElement.textContent),
+        intervalData: intervalData
+    };
+
+    // Tampilkan loading
+    const saveButton = document.getElementById('ulangi-btn');
+    const originalText = saveButton.textContent;
+    saveButton.textContent = 'Menyimpan...';
+    saveButton.disabled = true;
+    
+    try {
+        // Kirim data ke Google Apps Script
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dataToSend)
+        });
         
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Hasil tes berhasil disimpan!');
+            console.log('Data tersimpan:', result);
+        } else {
+            alert('❌ Gagal menyimpan: ' + result.message);
+        }
+        
+    } catch (error) {
+        console.error('Error menyimpan data:', error);
+        alert('⚠️ Terjadi kesalahan saat menyimpan data. Coba lagi.');
+    } finally {
+        // Reset tombol
+        saveButton.textContent = originalText;
+        saveButton.disabled = false;
+    }
+}
+
+// Otomatis simpan saat tes selesai
+const originalSelesaikanTes = selesaikanTes;
+selesaikanTes = function() {
+    originalSelesaikanTes();
+    setTimeout(() => {
+        simpanHasilKeSheet();
+    }, 500);
+};
+
         // Event Listeners
         lanjutInstruksiBtn.addEventListener('click', lanjutKeInstruksi);
         kembaliFormBtn.addEventListener('click', kembaliKeForm);
@@ -1087,158 +1150,6 @@
             waktuTesInput.value = 1;
             durasiTampil.textContent = 1;
         });
-// ========== KODE UNTUK HTML ANDA ==========
-// Paste ini SEBELUM </script> di file HTML Anda
-
-// GANTI DENGAN URL WEB APP ANDA
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby44k7JscIJwzLo7aQAGTYZMaS3hAiUMvVP98-bEqXGH4o3tyG0RvsKgE8jz1hgycVU/exec';
-
-// Fungsi untuk menyimpan hasil
-function saveResultsToGoogleSheets() {
-    console.log('Menyimpan hasil tes...');
-    
-    // Kumpulkan data dari HTML
-    const testData = {
-        nama: pesertaNama || document.getElementById('nama-input')?.value || 'Peserta',
-        totalSoal: totalAnswered || 0,
-        totalBenar: totalCorrect || 0,
-        totalSalah: (totalAnswered - totalCorrect) || 0,
-        kecepatanKerja: parseFloat(document.getElementById('kecepatan-score')?.innerText) || 0,
-        ketelitianKerja: parseFloat(document.getElementById('ketelitian-score')?.innerText?.replace('%', '')) || 0,
-        keajeganKerja: parseFloat(document.getElementById('keajegan-score')?.innerText?.replace('%', '')) || 0,
-        ketahananKerja: parseFloat(document.getElementById('ketahanan-score')?.innerText?.replace('%', '')) || 0,
-        durasiTes: testDuration / 60 || 0,
-        accuracy: parseFloat(document.getElementById('accuracy-score')?.innerText?.replace('%', '')) || 0,
-        intervalData: intervalData || []
-    };
-    
-    console.log('Data yang akan dikirim:', testData);
-    
-    // Tampilkan status
-    showSaveStatus('🔄 Mengirim data ke server...', 'info');
-    
-    // Kirim ke Google Sheets
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        mode: 'no-cors', // Coba no-cors jika ada CORS error
-        body: JSON.stringify(testData)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.text(); // Gunakan text() dulu
-    })
-    .then(text => {
-        console.log('Response text:', text);
-        try {
-            const result = JSON.parse(text);
-            if (result.success) {
-                showSaveStatus('✅ Data berhasil disimpan! Baris ' + result.row, 'success');
-                alert('Data tersimpan dengan sukses!');
-            } else {
-                showSaveStatus('❌ Error: ' + result.message, 'error');
-            }
-        } catch (e) {
-            console.log('Bukan JSON, mungkin HTML:', text.substring(0, 100));
-            showSaveStatus('⚠️ Respons tidak terduga', 'warning');
-        }
-    })
-    .catch(error => {
-        console.error('Fetch error:', error);
-        showSaveStatus('❌ Gagal mengirim data: ' + error.message, 'error');
-    });
-}
-
-// Fungsi untuk menampilkan status
-function showSaveStatus(message, type) {
-    // Hapus status sebelumnya
-    const oldStatus = document.getElementById('save-status');
-    if (oldStatus) oldStatus.remove();
-    
-    // Buat elemen status baru
-    const statusDiv = document.createElement('div');
-    statusDiv.id = 'save-status';
-    statusDiv.innerHTML = message;
-    
-    // Styling berdasarkan type
-    const styles = {
-        info: 'background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;',
-        success: 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;',
-        error: 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;',
-        warning: 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;'
-    };
-    
-    statusDiv.style.cssText = `
-        ${styles[type] || styles.info}
-        padding: 10px 15px;
-        margin: 15px 0;
-        border-radius: 5px;
-        font-weight: bold;
-        text-align: center;
-    `;
-    
-    // Tambahkan ke hasil screen
-    const hasilScreen = document.getElementById('hasil-screen');
-    if (hasilScreen) {
-        const firstChild = hasilScreen.firstChild;
-        hasilScreen.insertBefore(statusDiv, firstChild);
-        
-        // Hapus otomatis setelah 5 detik
-        setTimeout(() => {
-            if (statusDiv.parentNode) {
-                statusDiv.style.opacity = '0';
-                statusDiv.style.transition = 'opacity 1s';
-                setTimeout(() => {
-                    if (statusDiv.parentNode) {
-                        statusDiv.parentNode.removeChild(statusDiv);
-                    }
-                }, 1000);
-            }
-        }, 5000);
-    }
-}
-
-// Modifikasi fungsi selesaikanTes
-if (typeof selesaikanTes !== 'undefined') {
-    const originalFinish = selesaikanTes;
-    
-    window.selesaikanTes = function() {
-        // Jalankan fungsi asli
-        originalFinish();
-        
-        // Simpan data setelah 1 detik
-        setTimeout(() => {
-            saveResultsToGoogleSheets();
-        }, 1000);
-    };
-}
-
-// Tambahkan tombol simpan manual
-document.addEventListener('DOMContentLoaded', function() {
-    // Tunggu 2 detik untuk memastikan semua elemen dimuat
-    setTimeout(() => {
-        if (document.getElementById('hasil-screen') && !document.getElementById('manual-save-btn')) {
-            const manualBtn = document.createElement('button');
-            manualBtn.id = 'manual-save-btn';
-            manualBtn.className = 'btn btn-success';
-            manualBtn.innerHTML = '💾 Simpan Data ke Server';
-            manualBtn.style.cssText = 'margin-top: 10px; width: 100%;';
-            
-            manualBtn.onclick = function() {
-                saveResultsToGoogleSheets();
-            };
-            
-            const ulangiBtn = document.getElementById('ulangi-btn');
-            if (ulangiBtn && ulangiBtn.parentNode) {
-                ulangiBtn.parentNode.insertBefore(manualBtn, ulangiBtn.nextSibling);
-            }
-        }
-    }, 2000);
-});
-
-
     </script>
 </body>
 </html>
